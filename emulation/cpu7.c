@@ -61,9 +61,11 @@ void i_BREAK(void);
 void i_RD8(void);
 void i_RD16(void);
 void i_RD32(void);
+void i_RDVLN(void);
 void i_WR8(void);
 void i_WR16(void);
 void i_WR32(void);
+void i_WRVLN(void);
 void i_RANDOM(void);
 void i_MEMCOPY(void);
 void i_STRCOPY(void);
@@ -98,8 +100,8 @@ void (*const instc[128])(void) = {
     i_INC,      i_DEC,      i_,         i_RANDOM,   i_,         i_,         i_,         i_,
     i_MEMFILL,  i_,         i_MEMDIFF,  i_MEMCOPY,  i_,         i_,         i_,         i_,
     i_STRLEN,   i_STRSCAN,  i_STRDIFF,  i_STRCOPY,  i_,         i_,         i_,         i_,
-    i_,         i_,         i_,         i_,         i_RD32,     i_RD16,     i_RD8,      i_,
-    i_,         i_,         i_,         i_,         i_WR32,     i_WR16,     i_WR8,      i_,
+    i_RDVLN,    i_,         i_,         i_,         i_RD32,     i_RD16,     i_RD8,      i_,
+    i_WRVLN,    i_,         i_,         i_,         i_WR32,     i_WR16,     i_WR8,      i_,
 // NOTE: the last group of codes is not checked for conditional execution
     i_DO,       i_SKIP,     i_,         i_,         i_,         i_,         i_,         i_,
     i_REPEAT,   i_UNTIL,    i_WHILE,    i_REPIF,    i_IF,       i_ENDIF,    i_ELSE,     i_NOP
@@ -878,6 +880,23 @@ void i_RD32(void) {
 }
 
 
+// a rdvln
+// read a VLN value from address A and return it to the stack after returning the updated A
+void i_RDVLN(void) {
+    pull(ACCB);
+    A=0;
+    D=0;
+    do {
+        C=(UINT64)MEM16RD(B);
+        B+=2;
+        A=(((C&MASK14)<<D) | A);
+        D+=14;
+    } while((C&WT_MASK)==WT_DNL);
+    push(ACCB);
+    push(ACCA);
+}
+
+
 // x a wr8
 // write byte X to address A
 void i_WR8(void) {
@@ -903,6 +922,22 @@ void i_WR32(void) {
     pull(ACCA);
     MEM16WR(B, A);
     MEM16WR((B+2), (A>>16));
+}
+
+
+// x a wrvln
+// write VLN X to address A and return updated A
+void i_WRVLN(void) {
+    pull(ACCB);
+    pull(ACCA);
+    do {
+        C=A&MASK14;
+        A>>=14;
+        if(A) C|=WT_DNL; else C|=WT_DL;
+        MEM16WR(B, C);
+        B+=2;
+    } while(A);
+    push(ACCB);
 }
 
 
